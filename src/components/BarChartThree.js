@@ -19,22 +19,20 @@ export default function BarChartThree() {
 
 	const handleSort = () => {
 		setIsSort(!isSort);
+		// console.log("answerFour: ", answerFour);
 
 		// console.log(isSort);
 
 		if (!isSort) {
-			console.log(
-				Object.fromEntries(
-					Object.entries(answerFour).sort(([, a], [, b]) => b - a)
-				)
+			const tempSorted = Object.fromEntries(
+				Object.entries(answerFour).sort(([, a], [, b]) => b - a)
 			);
-			setSorted(
-				Object.fromEntries(
-					Object.entries(answerFour).sort(([, a], [, b]) => b - a)
-				)
-			);
+			// console.log("tempSorted: ", tempSorted);
+			setSorted(tempSorted);
+			// console.log("anserFoursorted: ", sorted);
 		} else {
 			setSorted(answerFour);
+			// console.log("anserFour: ", sorted);
 		}
 
 		// console.log("sorted: ", sorted);
@@ -58,8 +56,6 @@ export default function BarChartThree() {
 		}
 		setSelectedChart(event.target.value);
 		setType(type);
-		console.log(selectedChart);
-		console.log(type);
 	};
 
 	useEffect(() => {
@@ -80,18 +76,14 @@ export default function BarChartThree() {
 				percentage,
 				perRespondent,
 			} = response.data;
-			// console.log("GroupedByAnswerFour: ", groupedByAnswerFour);
-			// console.log("Total: ", total);
+
 			setAnswerFour(groupedByAnswerFour);
+			setSorted(groupedByAnswerFour);
 			setTotal(total);
 			setParticipants(participants);
-			setSorted(groupedByAnswerFour);
 			setQustionFour(qustionFour);
 			setPercentage(percentage);
 			setPerRespondent(perRespondent);
-
-			// console.log("answerFour: ", answerFour);
-			// console.log("total: ", total);
 		};
 
 		fetchData();
@@ -104,6 +96,47 @@ export default function BarChartThree() {
 			}
 
 			const context = chartRef.current.getContext("2d");
+
+			const dataLabelHorizontalVertical = {
+				id: "dataLabelHorizontalVertical",
+				afterDatasetsDraw(chart, args, plugins) {
+					// console.log("chart: ", chart);
+					const {
+						ctx,
+						scales: { x, y },
+					} = chart;
+					// console.log(chart.getDatasetMeta(0));
+					// console.log("X: ", x, "Y: ", y);
+					const datasetMeta0 = chart.getDatasetMeta(0);
+
+					// console.log(datasetMeta0.data);
+					datasetMeta0.data.forEach((datapoint, index) => {
+						// console.log("datapoint: ", datapoint);
+						// console.log(datasetMeta0.data[index]);
+
+						let valueX, valueY;
+						if (!datapoint.horizontal) {
+							valueX = 12;
+							valueY = 10;
+						} else {
+							valueX = -10;
+							valueY = 0;
+						}
+
+						const value = chart.data.datasets[0].data[index];
+
+						ctx.save();
+						ctx.font = "bold 12px sans-serif";
+						ctx.fillStyle = "black";
+						ctx.textAllign = "center";
+						ctx.fillText(
+							((value / participants) * 100).toFixed(1) + "%",
+							datasetMeta0.data[index].x - valueX,
+							datasetMeta0.data[index].y - valueY
+						);
+					});
+				},
+			};
 
 			// TopLabels Plugin Block
 			const topLabels = {
@@ -137,13 +170,18 @@ export default function BarChartThree() {
 			};
 
 			const data = {
-				labels: Object.keys(answerFour).map((obj) =>
-					obj.length > 15 ? obj.slice(0, 15) + " ...." : obj
-				),
+				labels: Object.keys(sorted).map((obj) => {
+					if (obj.trim() === qustionFour.otherOptions[0]) {
+						// console.log("obj: ", obj);
+						// console.log("otheroptins:", qustionFour.otherOptions);
+						obj = "Others";
+					}
+					return obj.length > 15 ? obj.slice(0, 15) + " ...." : obj;
+				}),
 				datasets: [
 					{
 						label: "General Info",
-						data: Object.values(answerFour),
+						data: Object.values(sorted),
 
 						backgroundColor: [
 							"rgba(255, 26, 104, 0.2)",
@@ -206,12 +244,31 @@ export default function BarChartThree() {
 				type: type,
 				data,
 				options,
-				plugins: selectedChart === "horizontal" ? [topLabels] : null,
+				// plugins:
+				// 	selectedChart === "horizontal" || selectedChart === "bar"
+				// 		? [topLabels]
+				// 		: null,
+				plugins:
+					selectedChart === "horizontal" ||
+					selectedChart === "bar" ||
+					selectedChart === "vertical"
+						? [dataLabelHorizontalVertical]
+						: null,
+				// plugins: [dataLabelHorizontalVertical],
 			});
 
 			chartRef.current.chart = newChart;
 		}
-	}, [answerFour, total, selectedChart, selectTable, sorted]);
+	}, [
+		total,
+		selectedChart,
+		selectTable,
+		sorted,
+		answerFour,
+		qustionFour,
+		type,
+		participants,
+	]);
 
 	return (
 		<>
@@ -281,7 +338,7 @@ export default function BarChartThree() {
 								</tr>
 							</thead>
 							<tbody>
-								{Object.entries(answerFour).map(([answer, response]) => (
+								{Object.entries(sorted).map(([answer, response]) => (
 									<tr key={answer}>
 										<td className='border border-gray-300 px-4 py-2'>
 											{answer}
